@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シンプル家計簿（Firebaseクラウド版）</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Chart.js ライブラリの読み込み -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- グラフ内にラベルを表示するためのプラグイン -->
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>家計簿アプリ</h1>
+      <!-- 画面切り替えタブ -->
+      <nav class="app-nav">
+        <button id="nav-home-btn" class="nav-btn active">ホーム</button>
+        <button id="nav-settings-btn" class="nav-btn">設定</button>
+      </nav>
+    </header>
+
+    <!-- ================= 🏠 ホーム画面 ================= -->
+    <div id="home-view" class="view-section active">
+      <section class="summary-section">
+        <div class="summary-card">
+          <!-- ▼ 左右に矢印ボタンを配置 ▼ -->
+          <div class="summary-header-row">
+            <button type="button" id="prev-month-btn" class="btn-arrow">◀</button>
+            <h2><span id="summary-month-text">10月</span>の収支</h2>
+            <button type="button" id="next-month-btn" class="btn-arrow">▶</button>
+          </div>
+
+          <!-- 💡 優先順位に合わせてレイアウトを刷新 -->
+          <div class="summary-main">
+            <div class="summary-label">残金（貯金額）</div>
+            <div id="total-balance" class="total-balance-amount">￥0</div>
+          </div>
+
+          <div class="summary-sub-row">
+            <div class="summary-sub-item expense-item">
+              <span class="summary-sub-label">支出</span>
+              <span id="total-amount" class="expense-sub-amount">￥0</span>
+            </div>
+            <div class="summary-sub-item">
+              <span class="summary-sub-label">収入</span>
+              <span id="total-income" class="income-sub-amount">￥0</span>
+            </div>
+          </div>
+
+          <!-- 収入設定ボタン -->
+          <button type="button" id="open-income-modal-btn" class="btn-secondary"
+            style="margin-top: 15px; width: 100%;">収入を設定する</button>
+        </div>
+      </section>
+
+      <!-- （以下、既存の支出入力フォームやグラフが続きます） -->
+
+      <!-- 円グラフ ＆ カテゴリ別内訳エリア -->
+      <section class="category-breakdown">
+        <h3>カテゴリ別内訳</h3>
+        <div class="chart-container">
+          <canvas id="category-chart"></canvas>
+        </div>
+        <div id="category-list" class="category-list">
+          <!-- 動的に挿入されます -->
+        </div>
+      </section>
+
+      <!-- データ入力フォーム -->
+      <section class="input-section">
+        <h3>購入内容</h3>
+        <form id="expense-form">
+          <div class="form-group">
+            <label for="date">日付</label>
+            <input type="date" id="date" required>
+          </div>
+
+          <div class="form-group">
+            <label for="amount">金額（円）</label>
+            <input type="number" id="amount" placeholder="例: 1200" min="1" required>
+          </div>
+
+          <div class="form-group">
+            <label for="category">カテゴリ</label>
+            <select id="category" required>
+              <!-- 動的にデフォルト＋カスタムカテゴリが生成されます -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="memo">メモ（店名や商品名など）</label>
+            <input type="text" id="memo" placeholder="例: スーパー〇〇、立て替え（任意）">
+          </div>
+
+          <button type="submit" class="btn-primary">追加する</button>
+        </form>
+      </section>
+
+      <!-- 履歴リスト -->
+      <section class="history-section">
+        <h3 id="history-title">直近の履歴（選択月）</h3>
+        <div id="history-list" class="history-list">
+          <!-- 動的に挿入されます -->
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= ⚙️ 設定画面 ================= -->
+    <div id="settings-view" class="view-section">
+      <section class="settings-section">
+        <h3>カテゴリのカスタマイズ</h3>
+        <p class="settings-desc">家計簿で使用する新しいカテゴリを追加できます。</p>
+
+        <form id="category-form">
+          <div class="form-group">
+            <label for="new-category-name">新しいカテゴリ名</label>
+            <input type="text" id="new-category-name" placeholder="例: お土産 など" required>
+          </div>
+          <button type="submit" class="btn-primary">カテゴリを追加</button>
+        </form>
+
+        <!-- ▼ ここを <details> タグに変更します ▼ -->
+        <details class="current-categories-box">
+          <summary class="categories-summary">登録済みカテゴリ一覧を見る</summary>
+          <div id="custom-category-list" class="category-list" style="margin-top: 10px;">
+            <!-- 動的に挿入されます -->
+          </div>
+        </details>
+      </section>
+    </div>
+  </div>
+
+  <!-- 編集モーダル（ポップアップ） -->
+  <div id="edit-modal" class="modal">
+    <div class="modal-content">
+      <h3>記録の編集</h3>
+      <form id="edit-form">
+        <input type="hidden" id="edit-id">
+        <div class="form-group">
+          <label for="edit-date">日付</label>
+          <input type="date" id="edit-date" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-amount">金額（円）</label>
+          <input type="number" id="edit-amount" min="1" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-category">カテゴリ</label>
+          <select id="edit-category" required>
+            <!-- 動的に生成されます -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="edit-memo">メモ</label>
+          <input type="text" id="edit-memo" placeholder="例: スーパー〇〇など（任意）">
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="cancel-edit" class="btn-secondary">キャンセル</button>
+          <button type="submit" class="btn-primary">保存する</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 収入設定モーダル -->
+  <div id="income-modal" class="modal">
+    <div class="modal-content">
+      <h3>収入（給料など）の設定</h3>
+      <form id="income-form" style="margin-top: 15px;">
+        <div class="form-group">
+          <label for="income-amount-input">今月の収入金額 (円)</label>
+          <input type="number" id="income-amount-input" placeholder="例: 250000" required>
+        </div>
+        <div class="modal-actions" style="display: flex; gap: 10px; margin-top: 15px;">
+          <button type="submit" class="btn-primary" style="flex: 1;">保存</button>
+          <button type="button" id="cancel-income-btn" class="btn-secondary" style="flex: 1;">キャンセル</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js" type="module"></script>
+</body>
+
+</html>
