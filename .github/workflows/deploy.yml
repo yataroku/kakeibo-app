@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ] # ※もしご自身のメインブランチが master の場合は master に書き換えてください
+    branches: [ main ] # メインブランチが master の場合は master に変更
 
 permissions:
   contents: read
@@ -16,12 +16,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 1. 秘密の金庫からキーを取り出して firebase-config.js を自動作成する
+      # 1. Secretsから firebase-config.js を確実に書き出す
       - name: Create firebase-config.js
         run: |
-          echo "${{ secrets.FIREBASE_CONFIG_JS }}" > firebase-config.js
+          cat << 'EOF' > firebase-config.js
+          ${{ secrets.FIREBASE_CONFIG_JS }}
+          EOF
 
-      # 2. GitHub Pages用の設定とアップロード
+      # 2. 生成されたファイルが存在するかログで確認する（デバッグ用）
+      - name: Check firebase-config.js
+        run: |
+          ls -la firebase-config.js
+          cat firebase-config.js | head -n 3
+
+      # 3. GitHub Pages へアップロード＆デプロイ
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
