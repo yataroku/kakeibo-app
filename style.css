@@ -4,6 +4,11 @@
   padding: 0;
 }
 
+/* 💡 どの画面でも常にスクロールバーの場所を確保し、ズレやガタつきを防ぐ */
+html {
+  overflow-y: scroll;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background-color: #f4f7f6;
@@ -491,4 +496,18 @@ input, select {
 
 .btn-arrow:active {
   transform: scale(0.95);
+}
+
+/* --- 設定画面のリスト項目の中央揃え・ズレ防止 --- */
+.categories-summary {
+  display: flex;
+  justify-content: center; /* 文字を綺麗に中央に配置する */
+  align-items: center;
+  text-align: center;
+  list-style: none;
+}
+
+/* 標準の三角矢印を完全に消してスッキリさせる */
+.categories-summary::-webkit-details-marker {
+  display: none;
 }

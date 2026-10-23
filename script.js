@@ -48,8 +48,10 @@ let unsubIncomes = null;
 
 // DOM要素
 const navHomeBtn = document.getElementById("nav-home-btn");
+const navReportBtn = document.getElementById("nav-report-btn");       // 💡 追加
 const navSettingsBtn = document.getElementById("nav-settings-btn");
 const homeView = document.getElementById("home-view");
+const reportView = document.getElementById("report-view");           // 💡 追加
 const settingsView = document.getElementById("settings-view");
 
 const currentMonthLabel = document.getElementById("current-month-label");
@@ -92,6 +94,13 @@ const editCategorySelect = document.getElementById("edit-category");
 const editMemoInput = document.getElementById("edit-memo");
 const cancelEditBtn = document.getElementById("cancel-edit");
 
+// レポート用のDOM要素
+const reportCategorySelect = document.getElementById("report-category-select");
+const reportSelectedCatName = document.getElementById("report-selected-cat-name");
+const reportHistoryListEl = document.getElementById("report-history-list");
+const reportHistoryTitleEl = document.getElementById("report-history-title");
+let reportChart = null; // レポート用グラフの変数
+
 // ==========================================
 // 1. 初期化 ＆ 認証
 // ==========================================
@@ -110,8 +119,20 @@ window.addEventListener("DOMContentLoaded", () => {
   if (incomeForm) incomeForm.addEventListener("submit", handleSaveIncome);
 
   // タブ切り替えのイベント設定
-  navHomeBtn.addEventListener("click", () => switchView("home"));
-  navSettingsBtn.addEventListener("click", () => switchView("settings"));
+  if (navHomeBtn) navHomeBtn.addEventListener("click", () => switchView("home"));         // 💡 追加
+  if (navReportBtn) navReportBtn.addEventListener("click", () => {
+    switchView("report");
+    updateReportCategorySelect(); // セレクトボックスを最新にする
+    updateReportView();           // レポートのグラフと明細を更新する
+  });
+  if (navSettingsBtn) navSettingsBtn.addEventListener("click", () => switchView("settings")); // 💡 追加
+
+  // レポートのカテゴリを変更したときにもグラフを連動させる
+  if (reportCategorySelect) {
+    reportCategorySelect.addEventListener("change", () => {
+      updateReportView();
+    });
+  }
 
   // 匿名ログイン実行
   signInAnonymously(auth)
@@ -142,16 +163,24 @@ window.addEventListener("DOMContentLoaded", () => {
 
 // 画面タブ切り替え関数
 function switchView(viewName) {
+  // すべてのボタンと画面から active を一旦外す
+  navHomeBtn.classList.remove("active");
+  navReportBtn.classList.remove("active");
+  navSettingsBtn.classList.remove("active");
+  homeView.classList.remove("active");
+  reportView.classList.remove("active");
+  settingsView.classList.remove("active");
+
+  // 選ばれたものだけ active をつける
   if (viewName === "home") {
     navHomeBtn.classList.add("active");
-    navSettingsBtn.classList.remove("active");
     homeView.classList.add("active");
-    settingsView.classList.remove("active");
-  } else {
+  } else if (viewName === "report") {
+    navReportBtn.classList.add("active");
+    reportView.classList.add("active");
+  } else if (viewName === "settings") {
     navSettingsBtn.classList.add("active");
-    navHomeBtn.classList.remove("active");
     settingsView.classList.add("active");
-    homeView.classList.remove("active");
   }
 }
 
@@ -178,6 +207,7 @@ function setupRealtimeListeners() {
 
     updateCategorySelects();
     renderCustomCategoryList();
+    updateReportCategorySelect(); // 💡 新しいカテゴリを追加したとき、レポート側にも反映させる
   });
 
   // ② 支出データの監視
@@ -448,6 +478,9 @@ function updateUI() {
 
   renderHistoryList(filteredExpenses);
   renderCategoryBreakdown(filteredExpenses, totalAmount);
+  
+  // 💡 データの変更に合わせてレポートも更新する
+  updateReportView();
 }
 
 function renderHistoryList(expenses) {
@@ -621,5 +654,135 @@ function escapeHTML(str) {
       '<': '&lt;',
       '>': '&gt;',
     }[match];
+  });
+}
+
+// ==========================================
+// 📊 レポート機能（選択式・月別推移）
+// ==========================================
+
+// レポート画面用のカテゴリセレクトボックスを更新
+function updateReportCategorySelect() {
+  if (!reportCategorySelect) return;
+  const currentVal = reportCategorySelect.value;
+  reportCategorySelect.innerHTML = "";
+  
+  currentCategories.forEach((cat) => {
+    const option = document.createElement("option");
+    option.value = cat;
+    option.textContent = cat;
+    reportCategorySelect.appendChild(option);
+  });
+
+  if (currentCategories.includes(currentVal)) {
+    reportCategorySelect.value = currentVal;
+  }
+}
+
+
+// レポート画面の描画を更新するメイン関数
+function updateReportView() {
+  if (!reportCategorySelect) return;
+  const selectedCategory = reportCategorySelect.value || currentCategories[0];
+  if (reportSelectedCatName) {
+    reportSelectedCatName.textContent = selectedCategory;
+  }
+
+  // 1. 過去6ヶ月分の月リストを作成（例: 2026-05 ~ 2026-10）
+  const months = [];
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    months.push(`${y}-${m}`);
+  }
+
+  // 2. 各月の、選択されたカテゴリの合計金額を集計
+  const monthlyData = months.map(ym => {
+    const matched = expensesData.filter(item => item.date.startsWith(ym) && item.category === selectedCategory);
+    const total = matched.reduce((sum, item) => sum + item.amount, 0);
+    return { ym, total };
+  });
+
+  // 3. グラフのラベル（表示用：例 "5月", "6月" ...）
+  const labels = months.map(ym => {
+    const [y, m] = ym.split('-');
+    return `${Number(m)}月`;
+  });
+  const monthlyTotals = monthlyData.map(d => d.total);
+
+  // 4. 棒グラフを描画
+  renderReportChart(labels, monthlyTotals, selectedCategory);
+
+  // 5. 下部のリストを「月ごとの合計一覧」に変更して表示
+  renderReportMonthlySummary(monthlyData, selectedCategory);
+}
+
+// レポート用棒グラフを描画する関数
+function renderReportChart(labels, data, categoryName) {
+  const ctx = document.getElementById("report-chart");
+  if (!ctx) return;
+
+  if (reportChart) {
+    reportChart.destroy();
+  }
+
+  reportChart = new Chart(ctx.getContext("2d"), {
+    type: 'bar', // 棒グラフ
+    data: {
+      labels: labels,
+      datasets: [{
+        label: categoryName,
+        data: data,
+        backgroundColor: '#3498db',
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return '￥' + value.toLocaleString();
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// 💡 レポート画面の下部に「月ごとの合計金額一覧」を表示する関数
+function renderReportMonthlySummary(monthlyData, categoryName) {
+  if (!reportHistoryListEl) return;
+  reportHistoryListEl.innerHTML = "";
+
+  if (reportHistoryTitleEl) {
+    reportHistoryTitleEl.textContent = `「${categoryName}」の月別合計一覧（直近6ヶ月）`;
+  }
+
+  // 直近の月が上に来るように逆順にする
+  const reversedData = [...monthlyData].reverse();
+
+  reversedData.forEach(item => {
+    const [y, m] = item.ym.split('-');
+    const row = document.createElement("div");
+    row.className = "category-item"; // ホーム画面のカテゴリ一覧と同じ綺麗なデザインを流用
+    row.innerHTML = `
+      <div class="category-item-left">
+        <span>${y}年${Number(m)}月</span>
+      </div>
+      <div class="category-item-right">
+        <span>￥${item.total.toLocaleString()}</span>
+      </div>
+    `;
+    reportHistoryListEl.appendChild(row);
   });
 }

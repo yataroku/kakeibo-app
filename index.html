@@ -20,6 +20,8 @@
       <!-- 画面切り替えタブ -->
       <nav class="app-nav">
         <button id="nav-home-btn" class="nav-btn active">ホーム</button>
+        <!-- 💡 ここにレポートボタンを追加！ -->
+        <button id="nav-report-btn" class="nav-btn">レポート</button>
         <button id="nav-settings-btn" class="nav-btn">設定</button>
       </nav>
     </header>
@@ -110,30 +112,64 @@
       </section>
     </div>
 
+    <!-- ================= 📊 レポート画面（選択式） ================= -->
+    <div id="report-view" class="view-section">
+      <section class="category-breakdown">
+        <h3>カテゴリ別・月次レポート</h3>
+        <p class="settings-desc">カテゴリを選択して、月ごとの支出の推移を確認できます。</p>
+        
+        <!-- カテゴリ選択用セレクトボックス -->
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label for="report-category-select">分析するカテゴリ</label>
+          <select id="report-category-select" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 1rem;">
+            <!-- 動的に生成 -->
+          </select>
+        </div>
+
+        <!-- 選択したカテゴリのタイトル -->
+        <div class="summary-card" style="margin-bottom: 20px; text-align: center;">
+          <h2><span id="report-selected-cat-name">食費</span>の月別推移</h2>
+        </div>
+
+        <!-- 棒グラフエリア（月ごとの推移） -->
+        <div class="chart-container" style="position: relative; height: 250px;">
+          <canvas id="report-chart"></canvas>
+        </div>
+        
+        <!-- 選択した月・カテゴリの明細リスト -->
+        <div class="history-section" style="margin-top: 25px;">
+          <h4 id="report-history-title" style="margin-bottom: 10px; font-size: 1rem; color: #333;">今月の該当明細</h4>
+          <div id="report-history-list" class="history-list">
+            <!-- 動的に挿入されます -->
+          </div>
+        </div>
+      </section>
+    </div>
+
+
     <!-- ================= ⚙️ 設定画面 ================= -->
     <div id="settings-view" class="view-section">
-      <section class="settings-section">
-        <h3>カテゴリのカスタマイズ</h3>
-        <p class="settings-desc">家計簿で使用する新しいカテゴリを追加できます。</p>
+      <!-- 💡 ホーム画面と同じ「summary-card」風の白背景カードで包んで重心を揃える -->
+      <div class="summary-card" style="text-align: left; padding: 24px;">
+        <h3 style="margin-bottom: 8px; color: #2c3e50; font-size: 1.2rem;">カテゴリのカスタマイズ</h3>
+        <p class="settings-desc" style="margin-bottom: 20px;">家計簿で使用する新しいカテゴリを追加できます。</p>
 
         <form id="category-form">
           <div class="form-group">
             <label for="new-category-name">新しいカテゴリ名</label>
             <input type="text" id="new-category-name" placeholder="例: お土産 など" required>
           </div>
-          <button type="submit" class="btn-primary">カテゴリを追加</button>
+          <button type="submit" class="btn-primary" style="margin-top: 5px;">カテゴリを追加</button>
         </form>
 
-        <!-- ▼ ここを <details> タグに変更します ▼ -->
-        <details class="current-categories-box">
+        <details class="current-categories-box" style="margin-top: 25px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
           <summary class="categories-summary">登録済みカテゴリ一覧を見る</summary>
           <div id="custom-category-list" class="category-list" style="margin-top: 10px;">
             <!-- 動的に挿入されます -->
           </div>
         </details>
-      </section>
+      </div>
     </div>
-  </div>
 
   <!-- 編集モーダル（ポップアップ） -->
   <div id="edit-modal" class="modal">
