@@ -2,10 +2,15 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ] # メインブランチにプッシュされたときに実行
+    branches: [ main ] # ※もしご自身のメインブランチが master の場合は master に書き換えてください
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -16,9 +21,15 @@ jobs:
         run: |
           echo "${{ secrets.FIREBASE_CONFIG_JS }}" > firebase-config.js
 
-      # 2. GitHub Pagesへデプロイする
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      # 2. GitHub Pages用の設定とアップロード
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
