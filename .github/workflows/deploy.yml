@@ -1,0 +1,26 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ] # メインブランチにプッシュされたときに実行
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 1. 秘密の金庫からキーを取り出して firebase-config.js を自動作成する
+      - name: Create firebase-config.js
+        run: |
+          echo "${{ secrets.FIREBASE_CONFIG_JS }}" > firebase-config.js
+
+      # 2. GitHub Pagesへデプロイする
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          # .githubフォルダなどは公開ファイルから除外する設定
+          exclude_workflow: true
