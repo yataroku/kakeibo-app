@@ -1,0 +1,43 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ] # メインブランチが master の場合は master に変更
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 1. Secretsから firebase-config.js を確実に書き出す
+      - name: Create firebase-config.js
+        run: |
+          cat << 'EOF' > firebase-config.js
+          ${{ secrets.FIREBASE_CONFIG_JS }}
+          EOF
+
+      # 2. 生成されたファイルが存在するかログで確認する（デバッグ用）
+      - name: Check firebase-config.js
+        run: |
+          ls -la firebase-config.js
+          cat firebase-config.js | head -n 3
+
+      # 3. GitHub Pages へアップロード＆デプロイ
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
