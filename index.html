@@ -64,7 +64,7 @@
 
       <!-- 円グラフ ＆ カテゴリ別内訳エリア -->
       <section class="category-breakdown">
-        <h3>カテゴリ別内訳</h3>
+        <h3>カテゴリー別内訳</h3>
         <div class="chart-container">
           <canvas id="category-chart"></canvas>
         </div>
@@ -83,15 +83,15 @@
           </div>
 
           <div class="form-group">
-            <label for="amount">金額（円）</label>
-            <input type="number" id="amount" placeholder="例: 1200" min="1" required>
-          </div>
-
-          <div class="form-group">
-            <label for="category">カテゴリ</label>
+            <label for="category">カテゴリー</label>
             <select id="category" required>
               <!-- 動的にデフォルト＋カスタムカテゴリが生成されます -->
             </select>
+          </div>
+
+          <div class="form-group">
+            <label for="amount">金額（円）</label>
+            <input type="number" id="amount" placeholder="例: 1200" min="1" required>
           </div>
 
           <div class="form-group">
@@ -115,13 +115,47 @@
     <!-- ================= 📊 レポート画面（選択式） ================= -->
     <div id="report-view" class="view-section">
       <section class="category-breakdown">
-        <h3>カテゴリ別・月次レポート</h3>
-        <p class="settings-desc">カテゴリを選択して、月ごとの支出の推移を確認できます。</p>
+
+        <!-- 📊 ① 「表示する年」の選択コントロール -->
+        <div class="report-controls">
+          <div class="form-group report-control-group" style="flex: 1;">
+            <label for="report-year-select" class="report-label">表示する年</label>
+            <select id="report-year-select" class="report-select">
+              <!-- 動的に生成 -->
+            </select>
+          </div>
+        </div>
+
+        <!-- 💡 1年間の総貯金額を表示するカード -->
+        <div class="summary-card yearly-total-card">
+          <div class="yearly-total-label"><span id="report-year-display">2026</span>年の年間貯金総額</div>
+          <div id="yearly-total-balance" class="yearly-total-amount">￥0</div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 📈 ② 月別収支（貯金額）の推移セクション -->
+        <!-- ========================================== -->
+        <h3 class="report-section-title">月別収支（貯金額）の推移</h3>
         
-        <!-- カテゴリ選択用セレクトボックス -->
-        <div class="form-group" style="margin-bottom: 20px;">
-          <label for="report-category-select">分析するカテゴリ</label>
-          <select id="report-category-select" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 1rem;">
+        <!-- 折れ線グラフを描画するキャンバス -->
+        <div class="chart-container balance-chart-container">
+          <canvas id="balance-trend-chart"></canvas>
+        </div>
+
+        <!-- 月別の収支金額一覧リスト -->
+        <div id="balance-trend-list" class="history-list">
+          <!-- 動的に挿入されます -->
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 📊 ③ カテゴリ別・月次レポートセクション -->
+        <!-- ========================================== -->
+        <h3 class="report-section-title">カテゴリー別・月次レポート</h3>
+
+        <!-- 「分析するカテゴリ」のセレクトボックス -->
+        <div class="form-group report-control-group" style="margin-bottom: 16px;">
+          <label for="report-category-select" class="report-label">分析するカテゴリー</label>
+          <select id="report-category-select" class="report-select">
             <!-- 動的に生成 -->
           </select>
         </div>
@@ -135,92 +169,120 @@
         <div class="chart-container" style="position: relative; height: 250px;">
           <canvas id="report-chart"></canvas>
         </div>
-        
+
         <!-- 選択した月・カテゴリの明細リスト -->
-        <div class="history-section" style="margin-top: 25px;">
-          <h4 id="report-history-title" style="margin-bottom: 10px; font-size: 1rem; color: #333;">今月の該当明細</h4>
+        <div class="history-section report-history-container">
+          <h4 id="report-history-title">今月の該当明細</h4>
           <div id="report-history-list" class="history-list">
             <!-- 動的に挿入されます -->
           </div>
         </div>
+
       </section>
     </div>
 
 
     <!-- ================= ⚙️ 設定画面 ================= -->
     <div id="settings-view" class="view-section">
-      <!-- 💡 ホーム画面と同じ「summary-card」風の白背景カードで包んで重心を揃える -->
-      <div class="summary-card" style="text-align: left; padding: 24px;">
-        <h3 style="margin-bottom: 8px; color: #2c3e50; font-size: 1.2rem;">カテゴリのカスタマイズ</h3>
-        <p class="settings-desc" style="margin-bottom: 20px;">家計簿で使用する新しいカテゴリを追加できます。</p>
+      <!-- ホーム画面と同じ白背景カード -->
+      <div class="summary-card settings-custom-card">
+        <h3 class="settings-custom-title">カテゴリーのカスタマイズ</h3>
+        <p class="settings-desc settings-custom-desc">家計簿で使用する新しいカテゴリーを追加できます。</p>
 
         <form id="category-form">
           <div class="form-group">
-            <label for="new-category-name">新しいカテゴリ名</label>
+            <label for="new-category-name">新しいカテゴリー名</label>
             <input type="text" id="new-category-name" placeholder="例: お土産 など" required>
           </div>
-          <button type="submit" class="btn-primary" style="margin-top: 5px;">カテゴリを追加</button>
+          <button type="submit" class="btn-primary settings-submit-btn">カテゴリーを追加</button>
         </form>
 
-        <details class="current-categories-box" style="margin-top: 25px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+        <details class="current-categories-box settings-details">
           <summary class="categories-summary">登録済みカテゴリ一覧を見る</summary>
-          <div id="custom-category-list" class="category-list" style="margin-top: 10px;">
+          <div id="custom-category-list" class="category-list settings-list-spacing">
             <!-- 動的に挿入されます -->
           </div>
         </details>
       </div>
+
+      <!-- 毎月の固定支出の設定カード -->
+      <div class="summary-card fixed-expense-card">
+        <h3 class="settings-card-title">毎月の固定支出の設定</h3>
+        <p class="settings-desc">毎月自動で発生する支出を登録できます。</p>
+
+        <form id="fixed-expense-form">
+          <div class="form-group">
+            <label for="fixed-name">項目名（例: 家賃、ネット代）</label>
+            <input type="text" id="fixed-name" placeholder="例: 家賃" required>
+          </div>
+          <div class="form-group">
+            <label for="fixed-amount">金額（円）</label>
+            <input type="number" id="fixed-amount" placeholder="例: 70000" min="1" required>
+          </div>
+          <button type="submit" class="btn-primary fixed-submit-btn">固定費を追加</button>
+        </form>
+
+        <!-- ▼ ここを <details> と <summary> に変更します ▼ -->
+        <details class="current-categories-box">
+          <summary class="categories-summary">登録済みの固定費一覧を見る</summary>
+          <div id="fixed-expense-list" class="category-list">
+            <!-- 動的に挿入されます -->
+          </div>
+        </details>
+        <!-- ▲ 変更ここまで ▲ -->
+      </div>
     </div>
 
-  <!-- 編集モーダル（ポップアップ） -->
-  <div id="edit-modal" class="modal">
-    <div class="modal-content">
-      <h3>記録の編集</h3>
-      <form id="edit-form">
-        <input type="hidden" id="edit-id">
-        <div class="form-group">
-          <label for="edit-date">日付</label>
-          <input type="date" id="edit-date" required>
-        </div>
-        <div class="form-group">
-          <label for="edit-amount">金額（円）</label>
-          <input type="number" id="edit-amount" min="1" required>
-        </div>
-        <div class="form-group">
-          <label for="edit-category">カテゴリ</label>
-          <select id="edit-category" required>
-            <!-- 動的に生成されます -->
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="edit-memo">メモ</label>
-          <input type="text" id="edit-memo" placeholder="例: スーパー〇〇など（任意）">
-        </div>
-        <div class="modal-actions">
-          <button type="button" id="cancel-edit" class="btn-secondary">キャンセル</button>
-          <button type="submit" class="btn-primary">保存する</button>
-        </div>
-      </form>
+    <!-- 編集モーダル（ポップアップ） -->
+    <div id="edit-modal" class="modal">
+      <div class="modal-content">
+        <h3>記録の編集</h3>
+        <form id="edit-form">
+          <input type="hidden" id="edit-id">
+          <div class="form-group">
+            <label for="edit-date">日付</label>
+            <input type="date" id="edit-date" required>
+          </div>
+          <div class="form-group">
+            <label for="edit-amount">金額（円）</label>
+            <input type="number" id="edit-amount" min="1" required>
+          </div>
+          <div class="form-group">
+            <label for="edit-category">カテゴリー</label>
+            <select id="edit-category" required>
+              <!-- 動的に生成されます -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="edit-memo">メモ</label>
+            <input type="text" id="edit-memo" placeholder="例: スーパー〇〇など（任意）">
+          </div>
+          <div class="modal-actions">
+            <button type="button" id="cancel-edit" class="btn-secondary">キャンセル</button>
+            <button type="submit" class="btn-primary">保存する</button>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
 
-  <!-- 収入設定モーダル -->
-  <div id="income-modal" class="modal">
-    <div class="modal-content">
-      <h3>収入（給料など）の設定</h3>
-      <form id="income-form" style="margin-top: 15px;">
-        <div class="form-group">
-          <label for="income-amount-input">今月の収入金額 (円)</label>
-          <input type="number" id="income-amount-input" placeholder="例: 250000" required>
-        </div>
-        <div class="modal-actions" style="display: flex; gap: 10px; margin-top: 15px;">
-          <button type="submit" class="btn-primary" style="flex: 1;">保存</button>
-          <button type="button" id="cancel-income-btn" class="btn-secondary" style="flex: 1;">キャンセル</button>
-        </div>
-      </form>
+    <!-- 収入設定モーダル -->
+    <div id="income-modal" class="modal">
+      <div class="modal-content">
+        <h3>収入（給料など）の設定</h3>
+        <form id="income-form">
+          <div class="form-group">
+            <label for="income-amount-input">今月の収入金額 (円)</label>
+            <input type="number" id="income-amount-input" placeholder="例: 250000" min="0" required>
+          </div>
+          <div class="modal-actions">
+            <button type="submit" class="btn-primary">保存</button>
+            <button type="button" id="cancel-income-btn" class="btn-secondary">キャンセル</button>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
 
-  <script src="script.js" type="module"></script>
+    <script src="script.js" type="module"></script>
 </body>
 
 </html>

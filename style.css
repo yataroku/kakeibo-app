@@ -362,12 +362,6 @@ input, select {
   display: block;
 }
 
-.settings-desc {
-  font-size: 0.85rem;
-  color: #666;
-  margin-bottom: 15px;
-}
-
 .current-categories-box {
   margin-top: 25px;
   border-top: 1px solid #eee;
@@ -510,4 +504,264 @@ input, select {
 /* 標準の三角矢印を完全に消してスッキリさせる */
 .categories-summary::-webkit-details-marker {
   display: none;
+}
+
+/* --- 💡 固定費設定カード用のスタイル --- */
+.fixed-expense-card {
+  text-align: left;
+  padding: 24px;
+  margin-top: 20px;
+}
+
+.settings-card-title {
+  margin-bottom: 8px;
+  color: #2c3e50;
+  font-size: 1.2rem;
+}
+
+.fixed-expense-card .settings-desc {
+  margin-bottom: 20px;
+}
+
+.fixed-submit-btn {
+  margin-top: 5px;
+}
+
+.fixed-list-container {
+  margin-top: 20px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 15px;
+}
+
+.fixed-list-title {
+  font-size: 0.95rem;
+  color: #34495e;
+  margin-bottom: 8px;
+}
+
+/* --- 📊 レポート画面のカテゴリ選択エリア --- */
+.report-form-group {
+  margin-bottom: 20px;
+}
+
+#report-category-select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+}
+
+/* --- 📊 レポート画面の該当明細セクション --- */
+.report-history-container {
+  margin-top: 25px;
+}
+
+#report-history-title {
+  margin-bottom: 10px;
+  font-size: 1rem;
+  color: #333;
+}
+
+/* --- ⚙️ 設定画面：カテゴリカスタマイズカードのスタイル --- */
+.settings-custom-card {
+  text-align: left;
+  padding: 24px;
+}
+
+.settings-custom-title {
+  margin-bottom: 8px;
+  color: #2c3e50;
+  font-size: 1.2rem;
+}
+
+.settings-custom-desc {
+  margin-bottom: 20px;
+}
+
+.settings-submit-btn {
+  margin-top: 5px;
+}
+
+.settings-details {
+  margin-top: 25px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 20px;
+}
+
+.settings-list-spacing {
+  margin-top: 10px;
+}
+
+/* --- 📌 固定費リストの上の余白 --- */
+#fixed-expense-list {
+  margin-top: 10px;
+}
+
+/* --- 💰 収入設定モーダルのスタイル --- */
+#income-form {
+  margin-top: 15px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+/* 💡 modal-actions の中にあるボタンすべてに flex: 1 を適用する */
+.modal-actions button {
+  flex: 1;
+}
+
+/* --- 📈 レポート画面：月別収支（貯金額）推移セクション --- */
+.balance-trend-container {
+  margin-top: 5px;
+}
+
+#balance-trend-title {
+  margin-bottom: 10px;
+  font-size: 1rem;
+  color: #333;
+}
+
+.balance-chart-container {
+  position: relative;
+  height: 250px;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+/* --- 📊 レポート画面：年・カテゴリ選択コントロール --- */
+/* ==========================================
+   📊 レポート画面用レイアウト調整
+   ========================================== */
+
+/* --- ① 年・カテゴリ選択プルダウン --- */
+.report-controls {
+  margin-bottom: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.report-control-group {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.report-label {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.report-select {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.95rem;
+  background-color: #fff;
+  color: #1e293b;
+}
+
+/* --- ② 💰 年間総貯金額サマリーカード --- */
+.yearly-total-card {
+  margin-top: 8px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #f0fdf4; /* 爽やかな薄緑 */
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.yearly-total-label {
+  font-size: 0.85rem;
+  color: #475569;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.yearly-total-amount {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #166534;
+  letter-spacing: 0.5px;
+}
+
+/* --- ③ セクション全体の枠組み ＆ 見出し --- */
+.balance-trend-container {
+  margin-top: 0;
+}
+
+#balance-trend-title,
+#report-history-title {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #1e293b;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+/* 大見出し（カテゴリ別・月次レポートなど） */
+#report-view h3 {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #1e293b;
+  margin-top: 32px;
+  margin-bottom: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0; /* セクションの境界線を追加 */
+}
+
+/* --- ④ グラフ描画キャンバスの高さと余白 --- */
+.balance-chart-container,
+.chart-container {
+  position: relative;
+  height: 220px; /* スマートフォン等でも収まりやすい絶妙な高さ */
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+/* --- ⑤ 明細・金額リスト --- */
+.report-history-container {
+  margin-top: 16px;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* ==========================================
+   📊 レポート画面の共通セクション見出しスタイル
+   ========================================== */
+.report-section-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #1e293b;
+  margin-top: 32px;
+  margin-bottom: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0; /* セクションの区切り線 */
+}
+
+/* 一番最初の見出し（月別収支の推移）の上のボーダーと余白はスッキリさせる */
+.report-section-title:first-of-type {
+  margin-top: 16px;
+  padding-top: 0;
+  border-top: none;
+}
+
+#report-history-title {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 10px;
 }

@@ -1,22 +1,22 @@
 // Firebase SDK のインポート
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { 
-  getAuth, 
-  signInAnonymously, 
-  onAuthStateChanged 
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  getDocs, 
-  doc, 
-  deleteDoc, 
-  updateDoc, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot 
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  doc,
+  deleteDoc,
+  updateDoc,
+  query,
+  where,
+  orderBy,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // 💡 別ファイルから設定を読み込む！
@@ -27,13 +27,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// デフォルトのカテゴリリスト
-const DEFAULT_CATEGORIES = [
-  "食費", "外食", "日用品", "漫画", "学習", "趣味", "旅行", "交通費", "衣服・美容", "サブスク", "光熱費", "ペット", "その他"
-];
-
-// アプリ内で保持する全カテゴリ（デフォルト ＋ カスタム）
-let currentCategories = [...DEFAULT_CATEGORIES];
+// アプリ内で保持するカテゴリ
+let currentCategories = [];
 
 // 状態管理
 let currentUser = null;
@@ -45,24 +40,24 @@ let categoryChart = null;
 let unsubExpenses = null;
 let unsubCategories = null;
 let unsubIncomes = null;
+let balanceTrendChart = null; // 月別収支グラフ用
 
 // DOM要素
 const navHomeBtn = document.getElementById("nav-home-btn");
-const navReportBtn = document.getElementById("nav-report-btn");       // 💡 追加
+const navReportBtn = document.getElementById("nav-report-btn");
 const navSettingsBtn = document.getElementById("nav-settings-btn");
 const homeView = document.getElementById("home-view");
-const reportView = document.getElementById("report-view");           // 💡 追加
+const reportView = document.getElementById("report-view");
 const settingsView = document.getElementById("settings-view");
 
 const currentMonthLabel = document.getElementById("current-month-label");
 const summaryMonthText = document.getElementById("summary-month-text");
-const prevMonthBtn = document.getElementById("prev-month-btn"); // ◀ 追加
-const nextMonthBtn = document.getElementById("next-month-btn"); // ▶ 追加
+const prevMonthBtn = document.getElementById("prev-month-btn");
+const nextMonthBtn = document.getElementById("next-month-btn");
 const totalAmountEl = document.getElementById("total-amount");
 const categoryListEl = document.getElementById("category-list");
 const historyListEl = document.getElementById("history-list");
 const historyTitleEl = document.getElementById("history-title");
-
 
 const expenseForm = document.getElementById("expense-form");
 const dateInput = document.getElementById("date");
@@ -99,71 +94,73 @@ const reportCategorySelect = document.getElementById("report-category-select");
 const reportSelectedCatName = document.getElementById("report-selected-cat-name");
 const reportHistoryListEl = document.getElementById("report-history-list");
 const reportHistoryTitleEl = document.getElementById("report-history-title");
-let reportChart = null; // レポート用グラフの変数
+let reportChart = null;
+
+// ▼ 固定費用のDOM要素 ＆ 変数
+const fixedExpenseForm = document.getElementById("fixed-expense-form");
+const fixedNameInput = document.getElementById("fixed-name");
+const fixedAmountInput = document.getElementById("fixed-amount");
+const fixedExpenseListEl = document.getElementById("fixed-expense-list");
+let fixedExpensesData = [];
+let unsubFixedExpenses = null;
+
+const reportYearSelect = document.getElementById("report-year-select");
 
 // ==========================================
 // 1. 初期化 ＆ 認証
 // ==========================================
 window.addEventListener("DOMContentLoaded", () => {
-  // 今日の日付をデフォルトセット
   dateInput.value = getTodayDateString();
   updateMonthLabel();
 
-  // 💡 矢印ボタンのクリックイベント設定
   if (prevMonthBtn) prevMonthBtn.addEventListener("click", () => changeMonth(-1));
   if (nextMonthBtn) nextMonthBtn.addEventListener("click", () => changeMonth(1));
 
-  // 収入モーダルのイベント設定
   if (openIncomeModalBtn) openIncomeModalBtn.addEventListener("click", openIncomeModal);
   if (cancelIncomeBtn) cancelIncomeBtn.addEventListener("click", closeIncomeModal);
   if (incomeForm) incomeForm.addEventListener("submit", handleSaveIncome);
 
-  // タブ切り替えのイベント設定
-  if (navHomeBtn) navHomeBtn.addEventListener("click", () => switchView("home"));         // 💡 追加
+  if (navHomeBtn) navHomeBtn.addEventListener("click", () => switchView("home"));
   if (navReportBtn) navReportBtn.addEventListener("click", () => {
     switchView("report");
-    updateReportCategorySelect(); // セレクトボックスを最新にする
-    updateReportView();           // レポートのグラフと明細を更新する
+    updateReportCategorySelect();
+    updateReportView();
   });
-  if (navSettingsBtn) navSettingsBtn.addEventListener("click", () => switchView("settings")); // 💡 追加
+  if (navSettingsBtn) navSettingsBtn.addEventListener("click", () => switchView("settings"));
 
-  // レポートのカテゴリを変更したときにもグラフを連動させる
   if (reportCategorySelect) {
     reportCategorySelect.addEventListener("change", () => {
       updateReportView();
     });
   }
 
-  // 匿名ログイン実行
   signInAnonymously(auth)
-    .then(() => {
-      console.log("匿名ログイン成功");
-    })
-    .catch((error) => {
-      console.error("ログインエラー:", error);
-    });
+    .then(() => { console.log("匿名ログイン成功"); })
+    .catch((error) => { console.error("ログインエラー:", error); });
 
-  // 認証状態の監視
   onAuthStateChanged(auth, (user) => {
     if (user) {
       currentUser = user;
-      // データのリアルタイム監視を開始
       setupRealtimeListeners();
     } else {
       currentUser = null;
     }
   });
 
-  // フォーム送信イベント
   expenseForm.addEventListener("submit", handleAddExpense);
   categoryForm.addEventListener("submit", handleAddCategory);
+  fixedExpenseForm.addEventListener("submit", handleAddFixedExpense);
   editForm.addEventListener("submit", handleUpdateExpense);
   cancelEditBtn.addEventListener("click", closeModal);
+
+  if (reportYearSelect) {
+    reportYearSelect.addEventListener("change", () => {
+      updateReportView();
+    });
+  }
 });
 
-// 画面タブ切り替え関数
 function switchView(viewName) {
-  // すべてのボタンと画面から active を一旦外す
   navHomeBtn.classList.remove("active");
   navReportBtn.classList.remove("active");
   navSettingsBtn.classList.remove("active");
@@ -171,7 +168,6 @@ function switchView(viewName) {
   reportView.classList.remove("active");
   settingsView.classList.remove("active");
 
-  // 選ばれたものだけ active をつける
   if (viewName === "home") {
     navHomeBtn.classList.add("active");
     homeView.classList.add("active");
@@ -193,27 +189,41 @@ function setupRealtimeListeners() {
   if (unsubExpenses) unsubExpenses();
   if (unsubCategories) unsubCategories();
   if (unsubIncomes) unsubIncomes();
+  if (unsubFixedExpenses) unsubFixedExpenses();
 
-  // ① カスタムカテゴリの監視
+  // ① カテゴリの監視（order順に並び替え）
   const categoriesRef = collection(db, "users", currentUser.uid, "categories");
-  unsubCategories = onSnapshot(categoriesRef, (snapshot) => {
-    customCategoriesData = [];
+  unsubCategories = onSnapshot(categoriesRef, async (snapshot) => {
+    let tempCategories = [];
     snapshot.forEach((docSnap) => {
-      customCategoriesData.push({ id: docSnap.id, ...docSnap.data() });
+      tempCategories.push({ id: docSnap.id, ...docSnap.data() });
     });
 
-    const customNames = customCategoriesData.map(c => c.name);
-    currentCategories = [...DEFAULT_CATEGORIES, ...customNames];
+    if (tempCategories.length === 0) {
+      const defaultInitialCategories = ["食費", "外食", "日用品", "その他"];
+      for (let i = 0; i < defaultInitialCategories.length; i++) {
+        await addDoc(categoriesRef, {
+          name: defaultInitialCategories[i],
+          order: i,
+          createdAt: new Date().toISOString()
+        });
+      }
+      return;
+    }
+
+    tempCategories.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    customCategoriesData = tempCategories;
+    currentCategories = customCategoriesData.map(c => c.name);
 
     updateCategorySelects();
     renderCustomCategoryList();
-    updateReportCategorySelect(); // 💡 新しいカテゴリを追加したとき、レポート側にも反映させる
+    updateReportCategorySelect();
   });
 
   // ② 支出データの監視
   const expensesRef = collection(db, "users", currentUser.uid, "expenses");
   const q = query(expensesRef, orderBy("date", "desc"));
-  
+
   unsubExpenses = onSnapshot(q, (snapshot) => {
     expensesData = [];
     snapshot.forEach((docSnap) => {
@@ -231,10 +241,21 @@ function setupRealtimeListeners() {
     });
     updateUI();
   });
+
+  // ④ 固定費データのリアルタイム監視
+  const fixedRef = collection(db, "users", currentUser.uid, "fixed_expenses");
+  unsubFixedExpenses = onSnapshot(fixedRef, (snapshot) => {
+    fixedExpensesData = [];
+    snapshot.forEach((docSnap) => {
+      fixedExpensesData.push({ id: docSnap.id, ...docSnap.data() });
+    });
+    renderFixedExpenseList();
+    updateUI();
+  });
 }
 
 // ==========================================
-// 3. カテゴリ管理機能
+// 3. カテゴリ管理 ＆ ドラッグ並び替え機能
 // ==========================================
 async function handleAddCategory(e) {
   e.preventDefault();
@@ -252,6 +273,7 @@ async function handleAddCategory(e) {
     const categoriesRef = collection(db, "users", currentUser.uid, "categories");
     await addDoc(categoriesRef, {
       name: categoryName,
+      order: customCategoriesData.length,
       createdAt: new Date().toISOString()
     });
     newCategoryNameInput.value = "";
@@ -274,34 +296,80 @@ async function handleDeleteCategory(categoryId, categoryName) {
   }
 }
 
+async function saveNewCategoryOrder(newOrderedIds) {
+  if (!currentUser) return;
+  try {
+    const batchPromises = newOrderedIds.map((id, newIndex) => {
+      const docRef = doc(db, "users", currentUser.uid, "categories", id);
+      return updateDoc(docRef, { order: newIndex });
+    });
+    await Promise.all(batchPromises);
+  } catch (error) {
+    console.error("並び替えの保存に失敗:", error);
+    alert("並び替えの保存に失敗しました。");
+  }
+}
+
 function renderCustomCategoryList() {
   if (!customCategoryListEl) return;
   customCategoryListEl.innerHTML = "";
 
-  DEFAULT_CATEGORIES.forEach((catName) => {
-    const item = document.createElement("div");
-    item.className = "category-item";
-    item.innerHTML = `
-      <div class="category-item-left">
-        <span>${escapeHTML(catName)} <span style="font-size: 0.75rem; color: #888; margin-left: 6px;">(初期)</span></span>
-      </div>
-      <span style="font-size: 0.8rem; color: #aaa;">固定</span>
-    `;
-    customCategoryListEl.appendChild(item);
-  });
+  if (customCategoriesData.length === 0) {
+    customCategoryListEl.innerHTML = `<p style="text-align: center; color: #888; font-size: 0.85rem;">カテゴリがありません</p>`;
+    return;
+  }
 
-  customCategoriesData.forEach((cat) => {
+  customCategoriesData.forEach((cat, index) => {
     const item = document.createElement("div");
     item.className = "category-item";
+
+    item.setAttribute("draggable", "true");
+    item.dataset.id = cat.id;
+    item.style.cursor = "grab";
+    item.style.userSelect = "none";
+    item.style.transition = "background-color 0.2s";
+
     item.innerHTML = `
-      <div class="category-item-left">
+      <div class="category-item-left" style="display: flex; align-items: center; gap: 8px;">
+        <span style="color: #cbd5e1; font-weight: bold; cursor: grab;">☰</span>
         <span>${escapeHTML(cat.name)}</span>
       </div>
-      <button type="button" class="btn-delete" data-id="${cat.id}" data-name="${escapeHTML(cat.name)}">削除</button>
+      <div>
+        <button type="button" class="btn-delete" data-id="${cat.id}" data-name="${escapeHTML(cat.name)}">削除</button>
+      </div>
     `;
+
+    item.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("text/plain", cat.id);
+      item.style.opacity = "0.4";
+    });
+
+    item.addEventListener("dragend", () => {
+      item.style.opacity = "1";
+      const rows = customCategoryListEl.querySelectorAll(".category-item");
+      const newOrderedIds = Array.from(rows).map(row => row.dataset.id);
+      saveNewCategoryOrder(newOrderedIds);
+    });
+
+    item.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      const draggingItem = customCategoryListEl.querySelector("[style*='opacity: 0.4']");
+      if (!draggingItem || draggingItem === item) return;
+
+      const rect = item.getBoundingClientRect();
+      const midpoint = rect.top + rect.height / 2;
+
+      if (e.clientY < midpoint) {
+        customCategoryListEl.insertBefore(draggingItem, item);
+      } else {
+        customCategoryListEl.insertBefore(draggingItem, item.nextSibling);
+      }
+    });
+
     item.querySelector(".btn-delete").addEventListener("click", () => {
       handleDeleteCategory(cat.id, cat.name);
     });
+
     customCategoryListEl.appendChild(item);
   });
 }
@@ -417,6 +485,13 @@ async function handleSaveIncome(e) {
   if (!currentUser) return;
 
   const amount = Number(incomeAmountInput.value);
+
+  // 💡 マイナス金額の入力をチェックしてブロック！
+  if (amount < 0) {
+    alert("収入には0以上の金額を入力してください。");
+    return;
+  }
+
   const incomesRef = collection(db, "users", currentUser.uid, "incomes");
   const existingIncome = incomesData.find(item => item.yearMonth === currentYearMonth);
 
@@ -446,30 +521,43 @@ function updateUI() {
     return item.date.startsWith(currentYearMonth);
   });
 
-  const totalAmount = filteredExpenses.reduce((sum, item) => sum + item.amount, 0);
-  totalAmountEl.textContent = `￥${totalAmount.toLocaleString()}`;
+  // 1. 通常の支出の合計
+  const expensesTotal = filteredExpenses.reduce((sum, item) => sum + item.amount, 0);
 
+  // 💡 2. 今月の収入を取得
   const currentIncomeObj = incomesData.find(item => item.yearMonth === currentYearMonth);
   const totalIncome = currentIncomeObj ? currentIncomeObj.amount : 0;
+
+  // 💡 3. 【重要】収入が未設定（0円）の場合は、固定費を「今月の総支出」に含めないようにする
+  // （※収入が入力されて初めて固定費が合算される仕組みにします）
+  const fixedTotal = (totalIncome > 0) ? fixedExpensesData.reduce((sum, item) => sum + item.amount, 0) : 0;
+
+  // 総支出（収入がない月は通常の支出のみ、収入がある月は固定費も合算）
+  const totalAmount = expensesTotal + fixedTotal;
+
+  totalAmountEl.textContent = `￥${totalAmount.toLocaleString()}`;
   totalIncomeEl.textContent = `￥${totalIncome.toLocaleString()}`;
 
-  // 収支（残金）の計算
   const totalBalance = totalIncome - totalAmount;
-  totalBalanceEl.textContent = `￥${totalBalance.toLocaleString()}`;
-  
-  // ▼ ここから上書き・追加します ▼
   const summaryCardEl = document.querySelector(".summary-card");
 
-  if (totalBalance < 0) {
+  // 💡 4. 収入が未設定（0円）のときの表示制御
+  if (totalIncome === 0) {
+    totalBalanceEl.textContent = `収入の未設定`;
+    totalBalanceEl.style.color = "#94a3b8"; // 落ち着いたグレー文字
+    if (summaryCardEl) {
+      summaryCardEl.classList.remove("danger-card", "success-card");
+    }
+  } else if (totalBalance < 0) {
     totalBalanceEl.textContent = `￥-${Math.abs(totalBalance).toLocaleString()}`;
-    totalBalanceEl.style.color = "#ef4444"; // 赤字：赤文字
+    totalBalanceEl.style.color = "#ef4444"; // 赤字
     if (summaryCardEl) {
       summaryCardEl.classList.add("danger-card");
       summaryCardEl.classList.remove("success-card");
     }
   } else {
-    totalBalanceEl.textContent = `￥+${totalBalance.toLocaleString()}`; // 💡 プラスのときに "+" をつける
-    totalBalanceEl.style.color = "#166534"; // 黒字：緑文字
+    totalBalanceEl.textContent = `￥+${totalBalance.toLocaleString()}`;
+    totalBalanceEl.style.color = "#166534"; // 黒字（グリーン）
     if (summaryCardEl) {
       summaryCardEl.classList.remove("danger-card");
       summaryCardEl.classList.add("success-card");
@@ -477,9 +565,19 @@ function updateUI() {
   }
 
   renderHistoryList(filteredExpenses);
-  renderCategoryBreakdown(filteredExpenses, totalAmount);
-  
-  // 💡 データの変更に合わせてレポートも更新する
+
+  // 💡 収入が未設定（0円）のときは、カテゴリ別内訳と円グラフを表示しない
+  if (totalIncome > 0) {
+    renderCategoryBreakdown(filteredExpenses, totalAmount);
+  } else {
+    // 収入が未設定のときはリストを空にして、グラフをクリアする
+    if (categoryListEl) categoryListEl.innerHTML = `<p style="text-align: center; color: #888; font-size: 0.85rem; padding: 15px;">収入を設定すると内訳とグラフが表示されます</p>`;
+    if (categoryChart) {
+      categoryChart.destroy();
+      categoryChart = null;
+    }
+  }
+
   updateReportView();
 }
 
@@ -519,6 +617,7 @@ function renderHistoryList(expenses) {
 }
 
 function renderCategoryBreakdown(expenses, totalAmount) {
+  // 1. まず通常のカテゴリごとの合計を計算
   const categoryTotals = {};
   currentCategories.forEach(cat => {
     categoryTotals[cat] = 0;
@@ -532,15 +631,26 @@ function renderCategoryBreakdown(expenses, totalAmount) {
     }
   });
 
-  const activeCategories = Object.keys(categoryTotals)
-    .map(cat => ({ name: cat, amount: categoryTotals[cat] }))
-    .filter(item => item.amount > 0)
-    .sort((a, b) => b.amount - a.amount);
+  // 💡 2. 【追加】登録されている固定費の合計を計算し、「固定費」というカテゴリとしてまとめる
+  const fixedTotal = fixedExpensesData.reduce((sum, item) => sum + item.amount, 0);
+  if (fixedTotal > 0) {
+    categoryTotals["固定費"] = fixedTotal;
+  }
+
+  // 💡 3. 通常のカテゴリ一覧に「固定費」も含めた全カテゴリのリストを作成
+  const allCategoriesToDisplay = [...currentCategories];
+  if (fixedTotal > 0 && !allCategoriesToDisplay.includes("固定費")) {
+    allCategoriesToDisplay.push("固定費");
+  }
+
+  const activeCategories = allCategoriesToDisplay
+    .map(cat => ({ name: cat, amount: categoryTotals[cat] || 0 }))
+    .filter(item => item.amount > 0);
 
   categoryListEl.innerHTML = "";
   const backgroundColors = [
-    "#3498db", "#e74c3c", "#2ecc71", "#f1c40f", 
-    "#9b59b6", "#1abc9c", "#e67e22", "#34495e", "#95a5a6"
+    "#3498db", "#e74c3c", "#2ecc71", "#f1c40f",
+    "#9b59b6", "#1abc9c", "#e67e22", "#34495e", "#95a5a6", "#e84393"
   ];
 
   activeCategories.forEach((cat, index) => {
@@ -660,13 +770,11 @@ function escapeHTML(str) {
 // ==========================================
 // 📊 レポート機能（選択式・月別推移）
 // ==========================================
-
-// レポート画面用のカテゴリセレクトボックスを更新
 function updateReportCategorySelect() {
   if (!reportCategorySelect) return;
   const currentVal = reportCategorySelect.value;
   reportCategorySelect.innerHTML = "";
-  
+
   currentCategories.forEach((cat) => {
     const option = document.createElement("option");
     option.value = cat;
@@ -679,47 +787,40 @@ function updateReportCategorySelect() {
   }
 }
 
-
-// レポート画面の描画を更新するメイン関数
 function updateReportView() {
   if (!reportCategorySelect) return;
+  updateReportYearSelect(); // 年の選択肢を最新に更新
+
+  const selectedYear = reportYearSelect ? reportYearSelect.value : String(new Date().getFullYear());
   const selectedCategory = reportCategorySelect.value || currentCategories[0];
   if (reportSelectedCatName) {
     reportSelectedCatName.textContent = selectedCategory;
   }
 
-  // 1. 過去6ヶ月分の月リストを作成（例: 2026-05 ~ 2026-10）
+  // 選ばれた年の「1月〜12月」の12ヶ月分の配列を作成
   const months = [];
-  const now = new Date();
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    months.push(`${y}-${m}`);
+  for (let m = 1; m <= 12; m++) {
+    const monthStr = String(m).padStart(2, '0');
+    months.push(`${selectedYear}-${monthStr}`);
   }
 
-  // 2. 各月の、選択されたカテゴリの合計金額を集計
+  // 1. カテゴリ別の月別データ（12ヶ月分）
   const monthlyData = months.map(ym => {
     const matched = expensesData.filter(item => item.date.startsWith(ym) && item.category === selectedCategory);
     const total = matched.reduce((sum, item) => sum + item.amount, 0);
     return { ym, total };
   });
 
-  // 3. グラフのラベル（表示用：例 "5月", "6月" ...）
-  const labels = months.map(ym => {
-    const [y, m] = ym.split('-');
-    return `${Number(m)}月`;
-  });
+  const labels = months.map(ym => `${Number(ym.split('-')[1])}月`);
   const monthlyTotals = monthlyData.map(d => d.total);
 
-  // 4. 棒グラフを描画
   renderReportChart(labels, monthlyTotals, selectedCategory);
-
-  // 5. 下部のリストを「月ごとの合計一覧」に変更して表示
   renderReportMonthlySummary(monthlyData, selectedCategory);
+
+  // 2. 💡 月別収支（貯金額）の推移（折れ線グラフ）も連動して更新！
+  updateBalanceTrendView(selectedYear, months);
 }
 
-// レポート用棒グラフを描画する関数
 function renderReportChart(labels, data, categoryName) {
   const ctx = document.getElementById("report-chart");
   if (!ctx) return;
@@ -729,7 +830,7 @@ function renderReportChart(labels, data, categoryName) {
   }
 
   reportChart = new Chart(ctx.getContext("2d"), {
-    type: 'bar', // 棒グラフ
+    type: 'bar',
     data: {
       labels: labels,
       datasets: [{
@@ -749,7 +850,7 @@ function renderReportChart(labels, data, categoryName) {
         y: {
           beginAtZero: true,
           ticks: {
-            callback: function(value) {
+            callback: function (value) {
               return '￥' + value.toLocaleString();
             }
           }
@@ -759,22 +860,20 @@ function renderReportChart(labels, data, categoryName) {
   });
 }
 
-// 💡 レポート画面の下部に「月ごとの合計金額一覧」を表示する関数
 function renderReportMonthlySummary(monthlyData, categoryName) {
   if (!reportHistoryListEl) return;
   reportHistoryListEl.innerHTML = "";
 
   if (reportHistoryTitleEl) {
-    reportHistoryTitleEl.textContent = `「${categoryName}」の月別合計一覧（直近6ヶ月）`;
+    reportHistoryTitleEl.textContent = `「${categoryName}」の月別合計一覧`;
   }
 
-  // 直近の月が上に来るように逆順にする
   const reversedData = [...monthlyData].reverse();
 
   reversedData.forEach(item => {
     const [y, m] = item.ym.split('-');
     const row = document.createElement("div");
-    row.className = "category-item"; // ホーム画面のカテゴリ一覧と同じ綺麗なデザインを流用
+    row.className = "category-item";
     row.innerHTML = `
       <div class="category-item-left">
         <span>${y}年${Number(m)}月</span>
@@ -786,3 +885,240 @@ function renderReportMonthlySummary(monthlyData, categoryName) {
     reportHistoryListEl.appendChild(row);
   });
 }
+
+// ==========================================
+// 💡 固定費の管理・描画機能
+// ==========================================
+async function handleAddFixedExpense(e) {
+  e.preventDefault();
+  if (!currentUser) return;
+
+  (async () => {
+    const name = fixedNameInput.value.trim();
+    const amount = Number(fixedAmountInput.value);
+    if (!name || !amount) return;
+
+    try {
+      const fixedRef = collection(db, "users", currentUser.uid, "fixed_expenses");
+      await addDoc(fixedRef, {
+        name: name,
+        amount: amount,
+        createdAt: new Date().toISOString()
+      });
+      fixedNameInput.value = "";
+      fixedAmountInput.value = "";
+    } catch (error) {
+      console.error("固定費の追加に失敗:", error);
+      alert("固定費の追加に失敗しました。");
+    }
+  })();
+}
+
+async function handleDeleteFixedExpense(id, name) {
+  if (!currentUser) return;
+  if (confirm(`固定費「${name}」を削除しますか？`)) {
+    try {
+      const docRef = doc(db, "users", currentUser.uid, "fixed_expenses", id);
+      await deleteDoc(docRef);
+    } catch (error) {
+      console.error("固定費の削除に失敗:", error);
+      alert("削除に失敗しました。");
+    }
+  }
+}
+
+function renderFixedExpenseList() {
+  if (!fixedExpenseListEl) return;
+  fixedExpenseListEl.innerHTML = "";
+
+  if (fixedExpensesData.length === 0) {
+    fixedExpenseListEl.innerHTML = `<p style="text-align: center; color: #888; font-size: 0.85rem; padding: 10px;">登録されている固定費はありません</p>`;
+    return;
+  }
+
+  fixedExpensesData.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "category-item";
+    row.innerHTML = `
+      <div class="category-item-left">
+        <span>${escapeHTML(item.name)}</span>
+      </div>
+      <div class="category-item-right">
+        <span>￥${item.amount.toLocaleString()}</span>
+        <button type="button" class="btn-delete" data-id="${item.id}" data-name="${escapeHTML(item.name)}">削除</button>
+      </div>
+    `;
+    row.querySelector(".btn-delete").addEventListener("click", () => {
+      handleDeleteFixedExpense(item.id, item.name);
+    });
+    fixedExpenseListEl.appendChild(row);
+  });
+}
+
+// ==========================================
+// 📈 月別収支（貯金額）の推移レポート機能
+// ==========================================
+function updateBalanceTrendView(targetYear, months) {
+  // 年が指定されていない場合は今年の12ヶ月分を作成
+  if (!months) {
+    months = [];
+    for (let m = 1; m <= 12; m++) {
+      months.push(`${targetYear}-${String(m).padStart(2, '0')}`);
+    }
+  }
+
+  const balanceData = months.map(ym => {
+    const incomeObj = incomesData.find(item => item.yearMonth === ym);
+    const income = incomeObj ? incomeObj.amount : 0;
+
+    const matchedExpenses = expensesData.filter(item => item.date.startsWith(ym));
+    const expensesTotal = matchedExpenses.reduce((sum, item) => sum + item.amount, 0);
+
+    const fixedTotal = fixedExpensesData.reduce((sum, item) => sum + item.amount, 0);
+    const totalExpense = expensesTotal + fixedTotal;
+
+    const balance = income > 0 ? income - totalExpense : 0;
+    const hasIncome = income > 0;
+
+    return { ym, balance, income, totalExpense, hasIncome };
+  });
+
+  // 💡 【追加】1年間の収支（貯金額）の合計を計算
+  const yearlyTotal = balanceData.reduce((sum, item) => {
+    return sum + (item.hasIncome ? item.balance : 0);
+  }, 0);
+
+  // 💡 【追加】年間総貯金額カードの表示を更新
+  const yearDisplayEl = document.getElementById("report-year-display");
+  const yearlyTotalEl = document.getElementById("yearly-total-balance");
+  if (yearDisplayEl) yearDisplayEl.textContent = targetYear;
+  if (yearlyTotalEl) {
+    if (yearlyTotal >= 0) {
+      yearlyTotalEl.textContent = `￥+${yearlyTotal.toLocaleString()}`;
+      yearlyTotalEl.style.color = "#166534"; // プラスなら緑文字
+    } else {
+      yearlyTotalEl.textContent = `￥-${Math.abs(yearlyTotal).toLocaleString()}`;
+      yearlyTotalEl.style.color = "#ef4444"; // マイナス（赤字）なら赤文字
+    }
+  }
+
+  const labels = months.map(ym => `${Number(ym.split('-')[1])}月`);
+  const balanceTotals = balanceData.map(d => d.hasIncome ? d.balance : 0);
+
+  renderBalanceTrendChart(labels, balanceTotals);
+  renderBalanceTrendSummary(balanceData, `${targetYear}年 月別収支（貯金額）の推移`);
+}
+
+function renderBalanceTrendChart(labels, data) {
+  const ctx = document.getElementById("balance-trend-chart");
+  if (!ctx) return;
+
+  if (balanceTrendChart) {
+    balanceTrendChart.destroy();
+  }
+
+  balanceTrendChart = new Chart(ctx.getContext("2d"), {
+    type: 'line', // 💡 折れ線グラフを指定！
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '月別収支（貯金額）',
+        data: data,
+        borderColor: '#2ecc71', // 落ち着いたグリーン（貯金・プラスのイメージ）
+        backgroundColor: 'rgba(46, 204, 113, 0.1)',
+        borderWidth: 3,
+        tension: 0.2, // 緩やかな曲線にする
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          ticks: {
+            callback: function (value) {
+              return '￥' + value.toLocaleString();
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderBalanceTrendSummary(balanceData, titleText) {
+  const listEl = document.getElementById("balance-trend-list");
+  const titleEl = document.getElementById("balance-trend-title");
+
+  if (titleEl && titleText) {
+    titleEl.textContent = titleText;
+  }
+
+  if (!listEl) return;
+  listEl.innerHTML = "";
+
+  const reversedData = [...balanceData].reverse();
+
+  reversedData.forEach(item => {
+    const [y, m] = item.ym.split('-');
+    const row = document.createElement("div");
+    row.className = "category-item";
+
+    let balanceText = "未設定";
+    let textColor = "#888";
+
+    if (item.hasIncome) {
+      balanceText = `￥${item.balance.toLocaleString()}`;
+      textColor = item.balance >= 0 ? "#166534" : "#ef4444"; // プラスなら緑、マイナスなら赤
+    }
+
+    row.innerHTML = `
+      <div class="category-item-left">
+        <span>${y}年${Number(m)}月</span>
+      </div>
+      <div class="category-item-right">
+        <span style="font-weight: bold; color: ${textColor};">${balanceText}</span>
+      </div>
+    `;
+    listEl.appendChild(row);
+  });
+}
+
+function updateReportYearSelect() {
+  if (!reportYearSelect) return;
+  const currentVal = reportYearSelect.value;
+
+  // 登録されているデータや今年を基準に、選択できる年のリストを作る
+  const years = new Set();
+  const currentYear = new Date().getFullYear();
+  years.add(String(currentYear));
+
+  // 支出データや収入データが存在する年も自動で選択肢に含める
+  expensesData.forEach(item => {
+    if (item.date) years.add(item.date.split('-')[0]);
+  });
+  incomesData.forEach(item => {
+    if (item.yearMonth) years.add(item.yearMonth.split('-')[0]);
+  });
+
+  const sortedYears = Array.from(years).sort().reverse(); // 新しい年が上に来るように
+
+  reportYearSelect.innerHTML = "";
+  sortedYears.forEach(year => {
+    const option = document.createElement("option");
+    option.value = year;
+    option.textContent = `${year}年`;
+    reportYearSelect.appendChild(option);
+  });
+
+  if (sortedYears.includes(currentVal)) {
+    reportYearSelect.value = currentVal;
+  } else {
+    reportYearSelect.value = String(currentYear);
+  }
+}
+
