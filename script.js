@@ -988,17 +988,23 @@ function updateBalanceTrendView(targetYear, months) {
     return sum + (item.hasIncome ? item.balance : 0);
   }, 0);
 
-  // 💡 【追加】年間総貯金額カードの表示を更新
+  // 💡 年間総貯金額カードの表示と背景色を更新
   const yearDisplayEl = document.getElementById("report-year-display");
   const yearlyTotalEl = document.getElementById("yearly-total-balance");
+  const yearlyCardEl = document.querySelector(".yearly-total-card"); // 年間総貯金額のカード要素
+
   if (yearDisplayEl) yearDisplayEl.textContent = targetYear;
-  if (yearlyTotalEl) {
+  if (yearlyTotalEl && yearlyCardEl) {
     if (yearlyTotal >= 0) {
       yearlyTotalEl.textContent = `￥+${yearlyTotal.toLocaleString()}`;
       yearlyTotalEl.style.color = "#166534"; // プラスなら緑文字
+      yearlyCardEl.classList.remove("danger-card");
+      yearlyCardEl.classList.add("success-card");
     } else {
       yearlyTotalEl.textContent = `￥-${Math.abs(yearlyTotal).toLocaleString()}`;
-      yearlyTotalEl.style.color = "#ef4444"; // マイナス（赤字）なら赤文字
+      yearlyTotalEl.style.color = "#ef4444"; // マイナスなら赤文字
+      yearlyCardEl.classList.add("danger-card");
+      yearlyCardEl.classList.remove("success-card");
     }
   }
 

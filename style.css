@@ -672,10 +672,22 @@ input, select {
   margin-top: 8px;
   margin-bottom: 24px;
   padding: 16px;
-  background: #f0fdf4; /* 爽やかな薄緑 */
-  border: 1px solid #bbf7d0;
   border-radius: 12px;
   text-align: center;
+  border: 1px solid #e2e8f0;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* プラス（黒字）のときの爽やかなグリーン背景 */
+.yearly-total-card.success-card {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+/* マイナス（赤字）のときの警告用レッド背景 */
+.yearly-total-card.danger-card {
+  background: #fff5f5;
+  border-color: #feb2b2;
 }
 
 .yearly-total-label {
@@ -688,7 +700,6 @@ input, select {
 .yearly-total-amount {
   font-size: 1.8rem;
   font-weight: bold;
-  color: #166534;
   letter-spacing: 0.5px;
 }
 
